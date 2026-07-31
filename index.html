@@ -135,6 +135,8 @@
     font-size:clamp(28px,5.6vw,72px);font-weight:900;color:#fff;opacity:.92;
     text-shadow:0 0 26px rgba(0,229,181,.55)
   }
+  .roller{transition:opacity .5s ease, filter .5s ease}
+  .roller.fade{opacity:0;filter:blur(10px)}
   .roller span{display:block;animation:flick .09s linear}
   @keyframes flick{from{opacity:.25;transform:translateY(14px)}to{opacity:1;transform:none}}
 
@@ -895,7 +897,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = Core;   //
     }, 90);
 
     const T = secs * 1000, t0 = performance.now();
-    let shown = secs, phase = 0;
+    let shown = secs, phase = 0, stopped = false;
+    roller.classList.remove('fade');
 
     const frame = () => {
       const left = Math.max(0, T - (performance.now() - t0));
@@ -907,6 +910,15 @@ if (typeof module !== 'undefined' && module.exports) module.exports = Core;   //
         cd.classList.remove('tick'); void cd.offsetWidth; cd.classList.add('tick');
         if(n <= 3) cd.classList.add('low');
       }
+      /* en el último segundo los nombres se detienen y se desvanecen:
+         así nadie confunde un nombre del carrusel con el ganador */
+      if(!stopped && left <= 1000){
+        stopped = true;
+        clearInterval(spin);
+        roller.classList.add('fade');
+        setTimeout(()=>{ roller.innerHTML = '<span>&nbsp;</span>'; }, 520);
+      }
+
       const p = 1 - left / T;
       const want = p < 0.4 ? 0 : (p < 0.75 ? 1 : 2);
       if(want !== phase){ phase = want; $('phaseText').textContent = PHASES[phase]; }
@@ -915,11 +927,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = Core;   //
       else {
         clearInterval(spin);
         cd.textContent = '0';
+        /* pausa de suspenso con la pantalla ya limpia antes de revelar */
         setTimeout(()=>{
           reveal(winner);
           drawing = false;
           $('drawBtn').disabled = false; $('againBtn').disabled = false;
-        }, 320);
+        }, 1200);
       }
     };
     requestAnimationFrame(frame);
