@@ -219,10 +219,10 @@
           <input type="text" id="prizeName" value="iPhone 17 Pro Max" maxlength="80">
         </div>
       </div>
-      <label>Logo oficial (PNG, JPG o SVG)</label>
+      <label>Logo oficial de Joinnus — ya viene cargado</label>
       <div class="drop" id="logoDrop">
-        <b>Sube el logo de Joinnus</b>
-        <small>Se mostrará en la parte superior de la pantalla pública.</small>
+        <b>Reemplazar el logo (opcional)</b>
+        <small>Solo si este evento usa otra marca. Acepta PNG, JPG o SVG.</small>
       </div>
       <input type="file" id="logoInput" accept="image/*" hidden>
       <img class="logo-prev" id="logoPrev" alt="logo">
@@ -650,7 +650,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = Core;   //
   if(typeof document === 'undefined') return;
 
   const $ = id => document.getElementById(id);
-  let built = null, logoData = null, drawing = false, loading = false;
+  /* Logo oficial de Joinnus incrustado: ya viene cargado por defecto */
+  const LOGO_DEFAULT = 'data:image/png;base64,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';
+  let built = null, logoData = LOGO_DEFAULT, drawing = false, loading = false;
 
   /* ---------- carga de archivos ---------- */
   function wireDrop(drop, input, handler){
@@ -670,6 +672,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = Core;   //
     rd.readAsDataURL(file);
   }
 
+  (function(){ const pv = $('logoPrev'); pv.src = LOGO_DEFAULT; pv.style.display = 'block'; })();
   wireDrop($('logoDrop'), $('logoInput'), loadLogo);
   wireDrop($('pubDrop'), $('pubInput'), processFile);
 
@@ -736,9 +739,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = Core;   //
      ============================================================ */
   const LOAD_PHASES = [
     [0,    'Leyendo el archivo…'],
-    [900,  'Sumando las opciones compradas…'],
-    [1900, 'Preparando el sorteo…'],
-    [2700, '¡BASE LISTA!']
+    [1600, 'Validando los registros…'],
+    [3600, 'Sumando las opciones compradas…'],
+    [5800, 'Agrupando a los participantes…'],
+    [8000, 'Ya casi está todo listo…'],
+    [9400, '¡BASE LISTA!']
   ];
 
   function processFile(file){
@@ -780,7 +785,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = Core;   //
   }
 
   function animateLoad(people, opts, names){
-    const T = 3200;                       // duración total de la animación
+    const T = 10000;                      // 10 s para que se sienta el volumen de participantes
     const t0 = performance.now();
     let phaseIx = 0;
 
@@ -794,10 +799,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = Core;   //
       const p = Math.min(1, (performance.now() - t0) / T);
       $('barFill').style.width = (p*100).toFixed(1) + '%';
 
-      const pPeople = Math.min(1, p / 0.62);
-      $('ctPeople').textContent = Math.round(people * pPeople).toLocaleString('es-PE');
-      const pOpts = p < 0.25 ? 0 : Math.min(1, (p - 0.25) / 0.6);
-      $('ctOpts').textContent = Math.round(opts * pOpts).toLocaleString('es-PE');
+      /* los contadores corren rápido al inicio y van frenando: se siente un conteo real */
+      const ease = x => 1 - Math.pow(1 - Math.min(1, Math.max(0, x)), 2.2);
+      $('ctPeople').textContent = Math.round(people * ease(p / 0.80)).toLocaleString('es-PE');
+      $('ctOpts').textContent   = Math.round(opts   * ease((p - 0.12) / 0.78)).toLocaleString('es-PE');
 
       const el = performance.now() - t0;
       while(phaseIx < LOAD_PHASES.length && el >= LOAD_PHASES[phaseIx][0]){
@@ -815,7 +820,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = Core;   //
                                      + opts.toLocaleString('es-PE') + ' OPCIONES COMPRADAS';
           loading = false;
           show('stateIdle');
-        }, 700);
+        }, 1100);
       }
     };
     requestAnimationFrame(frame);
