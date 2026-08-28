@@ -354,9 +354,10 @@
       </select>
       <p class="hint-inline" style="margin-top:12px">Usa la segunda opción si el archivo ya viene expandido, con una fila por cada
         oportunidad. Puedes comprobar los totales con la tecla <b>V</b> dentro del modo presentación.</p>
-      <label class="toggle"><input type="checkbox" id="skipVoid" checked>
-        <span>No incluir compras anuladas ni devueltas
-          <small>Se usan las columnas PAGADO, ANULADO y DEVOLUCION del archivo, si existen.</small></span></label>
+      <label class="toggle"><input type="checkbox" id="skipVoid">
+        <span>Descontar las compras anuladas o devueltas
+          <small>Normalmente va desmarcado: una devolución de entradas no cancela las opciones ya ganadas para el sorteo.
+            Márcalo solo si las bases del evento dicen lo contrario. Usa las columnas PAGADO, ANULADO y DEVOLUCION del archivo.</small></span></label>
     </div>
 
     <div class="card">
