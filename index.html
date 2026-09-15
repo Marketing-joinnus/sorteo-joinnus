@@ -121,7 +121,13 @@
   .cfg-actions{display:flex;justify-content:center;margin-top:26px}
 
   /* ---------- PRESENTACIÓN ---------- */
-  #show{align-items:center;justify-content:center;text-align:center;padding:clamp(16px,3vh,40px) 24px;position:relative}
+  #show{align-items:center;justify-content:flex-start;text-align:center;position:relative;
+    padding:clamp(16px,3vh,40px) 24px;
+    overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;
+    scrollbar-width:thin;scrollbar-color:rgba(0,229,181,.45) transparent}
+  #show::-webkit-scrollbar{width:10px}
+  #show::-webkit-scrollbar-thumb{background:rgba(0,229,181,.4);border-radius:99px}
+  #show::-webkit-scrollbar-track{background:transparent}
   #fx{position:fixed;inset:0;pointer-events:none;z-index:5}
   /* halos animados suaves, sin competir con el fondo oficial */
   .glow{position:fixed;width:70vmax;height:70vmax;border-radius:50%;filter:blur(110px);opacity:.10;pointer-events:none;z-index:0}
@@ -149,10 +155,10 @@
     100%{transform:translate3d(0,0,0)}
   }
 
-  .stage{position:relative;z-index:10;width:100%;max-width:1260px;margin:auto;
+  .stage{position:relative;z-index:10;width:100%;max-width:1260px;margin:auto;flex:0 0 auto;
     transform-origin:center center;will-change:transform;
     display:flex;flex-direction:column;justify-content:center}
-  .stage>.block{width:100%;margin-left:auto;margin-right:auto;text-align:center}
+  .stage>.block{width:100%;flex:0 0 auto;margin-left:auto;margin-right:auto;text-align:center}
   .stage>.block>*{margin-left:auto;margin-right:auto}
   .brand{height:clamp(52px,10vh,104px);margin-bottom:clamp(20px,4.6vh,46px);display:flex;align-items:center;justify-content:center}
   .brand img{max-height:100%;max-width:min(440px,76vw);object-fit:contain}
@@ -323,7 +329,8 @@
   <div class="cfg-wrap">
     <h1 class="cfg-title">Configuración previa al evento</h1>
     <p class="cfg-sub">Esta pantalla es solo para el operador. Al activar el modo presentación desaparece por completo.<br>
-      La base de participantes se carga en vivo, delante del público, dentro del modo presentación.<br>
+      La base de participantes se carga en vivo, delante del público, dentro del modo presentación.
+      Puedes subir varios archivos a la vez: se combinan y, si una persona aparece en más de uno, sus opciones se suman.<br>
       Acepta Excel (.xlsx, .xlsm, .xlsb, .xls, .ods) y archivos de texto (.csv, .txt, .tsv). Solo necesita una columna CANTIDAD.</p>
 
     <div class="card">
@@ -374,9 +381,10 @@
       <div class="prow-actions">
         <button type="button" class="btn ghost small" id="loadBulk">CARGAR LISTA</button>
       </div>
-      <label class="toggle" id="noRepeatWrap" style="display:none"><input type="checkbox" id="noRepeat" checked>
+      <label class="toggle" id="noRepeatWrap" style="display:none"><input type="checkbox" id="noRepeat">
         <span>Que nadie gane dos veces
-          <small>Quien gana un premio ya no entra en los sorteos siguientes.</small></span></label>
+          <small>Desmarcado (por defecto): quien ya ganó sigue participando por los demás premios con todas sus opciones.
+            Márcalo solo si las bases del evento limitan un premio por persona.</small></span></label>
     </div>
 
     <div class="card">
@@ -434,9 +442,9 @@
       <h2 class="question">CARGUEMOS A LOS PARTICIPANTES</h2>
       <div class="pubdrop" id="pubDrop">
         <b>CARGAR BASE DE PARTICIPANTES</b>
-        <small>Arrastra el archivo aquí o haz clic para elegirlo · Excel o CSV</small>
+        <small>Arrastra aquí uno o varios archivos · Excel o CSV · se suman en una sola base</small>
       </div>
-      <input type="file" id="pubInput"
+      <input type="file" id="pubInput" multiple
         accept=".csv,.txt,.tsv,.xlsx,.xlsm,.xlsb,.xls,.xltx,.xltm,.xlt,.ods,.dif,.slk,.prn,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         hidden>
       <div class="pubmsg" id="pubMsg"></div>
@@ -904,7 +912,36 @@ const Core = (() => {
     return fem ? 'de la' : 'del';
   }
 
-  return {parseCSV, fromRows, readAny, sniff, decodeText, detect, parseQty, build, pick, secureInt, norm,
+  /* --- Une varias bases en una sola: la misma persona suma sus opciones --- */
+  function merge(builds){
+    const map = new Map();
+    let discarded = 0, anuladas = 0, duplicadas = 0, validas = 0;
+    for(const b of builds){
+      discarded += b.discarded; anuladas += b.anuladas;
+      duplicadas += b.duplicadas; validas += b.validas;
+      for(const p of b.list){
+        let q = map.get(p.key);
+        if(!q){
+          q = {key:p.key, name:p.name, given:p.given, sur:p.sur, doc:p.doc, mail:p.mail, tran:p.tran, weight:0, compras:0};
+          map.set(p.key, q);
+        }
+        if(!q.name && p.name) q.name = p.name;
+        if(!q.given && p.given) q.given = p.given;
+        if(!q.sur && p.sur) q.sur = p.sur;
+        if(!q.doc && p.doc) q.doc = p.doc;
+        if(!q.mail && p.mail) q.mail = p.mail;
+        if(!q.tran && p.tran) q.tran = p.tran;
+        q.weight += p.weight;
+        q.compras += (p.compras || 0);
+      }
+    }
+    const list = [...map.values()];
+    let acc = 0;
+    for(const p of list){ acc += p.weight; p.cum = acc; }
+    return {list, total:acc, discarded, anuladas, duplicadas, validas};
+  }
+
+  return {parseCSV, fromRows, readAny, sniff, decodeText, detect, parseQty, build, merge, pick, secureInt, norm,
           autoConn, analizaFraccion};
 })();
 
@@ -1037,12 +1074,13 @@ if (typeof module !== 'undefined' && module.exports) module.exports = Core;   //
     drop.addEventListener('dragleave', ()=> drop.classList.remove('over'));
     drop.addEventListener('drop', e=>{
       e.preventDefault(); drop.classList.remove('over');
-      if(e.dataTransfer.files[0]) handler(e.dataTransfer.files[0]);
+      if(e.dataTransfer.files.length) handler(e.dataTransfer.files);
     });
-    input.addEventListener('change', ()=>{ if(input.files[0]) handler(input.files[0]); });
+    input.addEventListener('change', ()=>{ if(input.files.length) handler(input.files); });
   }
 
-  function loadLogo(file){
+  function loadLogo(files){
+    const file = files[0] || files;
     const rd = new FileReader();
     rd.onload = () => { logoData = rd.result; const p=$('logoPrev'); p.src=logoData; p.style.display='block'; };
     rd.readAsDataURL(file);
@@ -1050,7 +1088,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = Core;   //
 
   (function(){ const pv = $('logoPrev'); pv.src = LOGO_DEFAULT; pv.style.display = 'block'; })();
   wireDrop($('logoDrop'), $('logoInput'), loadLogo);
-  wireDrop($('pubDrop'), $('pubInput'), processFile);
+  wireDrop($('pubDrop'), $('pubInput'), processFiles);
 
   /* ---------- lista de premios ---------- */
   const MAX_PREMIOS = 20000;
@@ -1201,35 +1239,34 @@ if (typeof module !== 'undefined' && module.exports) module.exports = Core;   //
       const d = $('diag');
       if(d.classList.contains('on')){ d.classList.remove('on'); return; }
       if(!diag){ d.textContent = 'Aún no se ha cargado ninguna base.'; d.classList.add('on'); return; }
-      const c = diag.cols;
       const L = [];
       L.push('VERIFICACIÓN INTERNA (tecla V para ocultar)');
-      L.push('archivo: ' + diag.archivo);
-      L.push('hoja usada: ' + diag.hoja);
-      if(diag.hojas.length > 1)
-        L.push('hojas del libro: ' + diag.hojas.map(h => h.name + ' [' + h.rows + ' filas, ' + h.unicas + ' únicas' + (h.qty ? ', con cantidad' : '') + ']').join('  |  '));
+      L.push('regla de conteo .... ' + (diag.fraccionado ? 'cada fila vale 1 opción' : 'se suma la columna de cantidad'));
+      L.push('descontar anuladas/devueltas: ' + ($('skipVoid').checked ? 'SÍ' : 'no'));
       L.push('');
-      L.push('regla de conteo .... ' + (diag.fraccionado
-        ? 'cada fila vale 1 opción'
-        : 'se suma la columna de cantidad'));
-      L.push('columna de peso ... ' + (c.cantidad || '(no hallada)') + (diag.fraccionado ? '  (solo se valida, no se suma)' : ''));
-      L.push('documento ......... ' + (c.doc || '—'));
-      L.push('correo ............ ' + (c.mail || '—'));
-      L.push('nombre ............ ' + (c.nombre || '—') + (c.apellido ? ' + ' + c.apellido : ''));
-      L.push('transacción ....... ' + (c.trans || '—') + (c.item ? '  (ítem: ' + c.item + ')' : ''));
-      L.push('estado ............ ' + ['pagado:'+(c.pagado||'—'), 'anulado:'+(c.anulado||'—'), 'devolución:'+(c.devolucion||'—')].join('  '));
-      L.push('');
-      L.push('filas leídas ................ ' + diag.filas.toLocaleString('es-PE'));
-      L.push('anuladas / devueltas ........ ' + diag.anuladas.toLocaleString('es-PE'));
-      L.push('repetidas (fraccionado) ..... ' + diag.duplicadas.toLocaleString('es-PE'));
-      L.push('sin cantidad válida ......... ' + diag.descartadas.toLocaleString('es-PE'));
-      L.push('filas que participan ........ ' + diag.validas.toLocaleString('es-PE'));
-      L.push('');
-      L.push('PARTICIPANTES ............... ' + diag.personas.toLocaleString('es-PE'));
-      L.push('OPCIONES (suma del peso) .... ' + diag.opciones.toLocaleString('es-PE'));
-      L.push('');
-      L.push('encabezados detectados:');
-      L.push(diag.headers.join(' | '));
+      (diag.archivos || []).forEach((a, n) => {
+        const c = a.cols;
+        L.push('ARCHIVO ' + (n+1) + ': ' + a.archivo);
+        L.push('   hoja usada: ' + a.hoja +
+          (a.hojas.length > 1 ? '   (' + a.hojas.map(h => h.name + ' [' + h.rows + ' filas/' + h.unicas + ' compras]').join(', ') + ')' : ''));
+        L.push('   columnas -> peso: ' + (c.cantidad || '—') + ' | documento: ' + (c.doc || '—') +
+               ' | nombre: ' + (c.nombre || '—') + (c.apellido ? ' + ' + c.apellido : '') +
+               ' | correo: ' + (c.mail || '—'));
+        L.push('   estado -> pagado: ' + (c.pagado || '—') + ' | anulado: ' + (c.anulado || '—') +
+               ' | devolución: ' + (c.devolucion || '—'));
+        L.push('   filas: ' + a.filas.toLocaleString('es-PE') +
+               '  ·  fuera por estado: ' + a.anuladas.toLocaleString('es-PE') +
+               '  ·  repetidas: ' + a.duplicadas.toLocaleString('es-PE') +
+               '  ·  sin cantidad: ' + a.descartadas.toLocaleString('es-PE'));
+        L.push('   participantes: ' + a.personas.toLocaleString('es-PE') + '  ·  opciones: ' + a.opciones.toLocaleString('es-PE'));
+        L.push('');
+      });
+      if((diag.archivos || []).length > 1){
+        L.push('COMBINADO');
+        L.push('   personas en más de un archivo: ' + (diag.repetidos || 0).toLocaleString('es-PE'));
+      }
+      L.push('PARTICIPANTES ÚNICOS ........ ' + diag.personas.toLocaleString('es-PE'));
+      L.push('OPCIONES TOTALES ............ ' + diag.opciones.toLocaleString('es-PE'));
       d.textContent = L.join('\n');
       d.classList.add('on');
       return;
@@ -1242,21 +1279,51 @@ if (typeof module !== 'undefined' && module.exports) module.exports = Core;   //
 
   const stageEl = document.querySelector('.stage');
 
-  /* Ajusta el escenario para que TODO entre en una sola pantalla, sin scroll ni recortes */
+  /* Encuadre: escala el escenario hasta que entre en la pantalla.
+     Se guía por el desborde real del contenedor, no por medir cajas anidadas. */
+  const MIN_ESCALA = 0.5;
+
   function fit(){
     if(!stageEl || !$('show').classList.contains('active')) return;
-    stageEl.style.transform = 'none';
     const cont = $('show');
     const cs = getComputedStyle(cont);
-    const disp = cont.clientHeight - parseFloat(cs.paddingTop || 0) - parseFloat(cs.paddingBottom || 0);
-    const alto = stageEl.scrollHeight;
-    const ancho = stageEl.scrollWidth;
-    const dispW = cont.clientWidth - parseFloat(cs.paddingLeft || 0) - parseFloat(cs.paddingRight || 0);
-    if(!(disp > 0) || !(alto > 0) || !(dispW > 0) || !(ancho > 0)) return;   /* nada que medir */
-    const k = Math.min(disp / alto, dispW / ancho, 1);
-    if(!(k > 0.05)) return;                                                  /* medida absurda: no tocar */
-    stageEl.style.transform = k < 0.995 ? 'scale(' + k.toFixed(4) + ')' : 'none';
+    const padT = parseFloat(cs.paddingTop) || 0;
+    const padB = parseFloat(cs.paddingBottom) || 0;
+
+    /* 1) estado limpio: sin escala y centrado */
+    stageEl.style.transform = 'none';
+    stageEl.style.transformOrigin = 'top center';
+    stageEl.style.marginTop = '';
+    stageEl.style.marginBottom = '';
+    const alto = stageEl.offsetHeight;
+    const libreTotal = cont.clientHeight - padT - padB;
+    if(!(alto > 0) || !(libreTotal > 0)) return;
+
+    /* 2) si entra tal cual, solo se centra */
+    if(cont.scrollHeight <= cont.clientHeight + 1 && alto <= libreTotal){
+      const hueco = libreTotal - alto;
+      stageEl.style.marginTop = (hueco / 2).toFixed(0) + 'px';
+      return;
+    }
+
+    /* 3) no entra: se reduce hasta que quepa (o hasta el mínimo legible) */
+    const libreAncho = cont.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0);
+    const ancho = Math.max(stageEl.scrollWidth, stageEl.offsetWidth) || 1;
+    let k = Math.min(1, libreTotal / alto, libreAncho / ancho);
+    for(let i = 0; i < 10; i++){
+      if(k <= MIN_ESCALA){ k = MIN_ESCALA; }
+      stageEl.style.transform = 'scale(' + k.toFixed(4) + ')';
+      stageEl.style.marginBottom = (-(alto * (1 - k))).toFixed(0) + 'px';
+      const hueco = libreTotal - alto * k;
+      stageEl.style.marginTop = (hueco > 0 ? hueco / 2 : 0).toFixed(0) + 'px';
+      const sobra = cont.scrollHeight - cont.clientHeight;
+      if(sobra <= 1 || k <= MIN_ESCALA) break;
+      const ratio = cont.clientHeight / cont.scrollHeight;
+      const nuevo = Math.max(MIN_ESCALA, k * ratio * 0.99);
+      if(nuevo >= k) { k = Math.max(MIN_ESCALA, k - 0.04); } else { k = nuevo; }
+    }
   }
+
   function fitPronto(){
     const raf = window.requestAnimationFrame;
     if(raf) raf(()=> raf(fit)); else setTimeout(fit, 30);
@@ -1271,6 +1338,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = Core;   //
     ['stateLoad','stateProcess','stateIdle','stateDraw','stateWin','stateSummary']
       .forEach(s => $(s).classList.toggle('on', s===id));
     if(id !== 'stateProcess' && id !== 'stateDraw') apagarBurbujas();
+    $('show').scrollTop = 0;          /* cada escena empieza desde arriba */
     fitPronto();
   }
 
@@ -1286,8 +1354,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = Core;   //
     [9400, '¡BASE LISTA!']
   ];
 
-  function processFile(file){
+  function processFiles(fileList){
     if(loading || drawing) return;
+    const files = Array.prototype.slice.call(fileList || []);
+    if(!files.length) return;
     loading = true;
     $('pubMsg').textContent = '';
     $('barFill').style.width = '0%';
@@ -1297,31 +1367,49 @@ if (typeof module !== 'undefined' && module.exports) module.exports = Core;   //
     $('loadPhase').textContent = LOAD_PHASES[0][1];
     show('stateProcess');
 
-    const rd = new FileReader();
-    rd.onload = () => {
-      let b = null, rows = 0, why = '';
-      try{
-        const leido = Core.readAny(rd.result);             // CSV, TXT, TSV o cualquier Excel
-        const headers = leido.headers, data = leido.data;
-        if(!headers.length || !data.length){ why = 'El archivo no tiene registros que podamos leer.'; throw 0; }
-        const cols = Core.detect(headers);
-        if(!cols.cantidad){ why = 'No encontramos la columna CANTIDAD en el archivo.'; throw 0; }
-        b = Core.build(data, cols, {excluirAnuladas: $('skipVoid').checked,
-                                    pesoPorFila: $('weighting').value === 'row'});
-        rows = data.length;
-        if(!b.list.length || b.total <= 0){ why = 'No hay participantes con oportunidades válidas.'; throw 0; }
-        diag = {archivo:file.name, hoja:leido.sheet, hojas:leido.sheets || [], cols:cols,
-                headers:headers, filas:rows, descartadas:b.discarded, anuladas:b.anuladas,
-                duplicadas:b.duplicadas, validas:b.validas, fraccionado:b.fraccionado,
-                personas:b.list.length, opciones:b.total};
-      }catch(e){ b = null; }
-      if(!b){ failLoad(why); return; }
+    const partes = [], detalle = [];
+    let ix = 0;
+
+    const siguiente = () => {
+      if(ix >= files.length){ terminar(); return; }
+      const file = files[ix++];
+      const rd = new FileReader();
+      rd.onload = () => {
+        try{
+          const leido = Core.readAny(rd.result);
+          const headers = leido.headers, data = leido.data;
+          if(!headers.length || !data.length) throw new Error('"' + file.name + '" no tiene registros que podamos leer.');
+          const cols = Core.detect(headers);
+          if(!cols.cantidad) throw new Error('No encontramos la columna de cantidad en "' + file.name + '".');
+          const b = Core.build(data, cols, {excluirAnuladas: $('skipVoid').checked,
+                                            pesoPorFila: $('weighting').value === 'row'});
+          if(!b.list.length || b.total <= 0) throw new Error('"' + file.name + '" no tiene participantes con opciones válidas.');
+          partes.push(b);
+          detalle.push({archivo:file.name, hoja:leido.sheet, hojas:leido.sheets || [], cols:cols, headers:headers,
+                        filas:data.length, descartadas:b.discarded, anuladas:b.anuladas, duplicadas:b.duplicadas,
+                        validas:b.validas, personas:b.list.length, opciones:b.total, fraccionado:b.fraccionado});
+          siguiente();
+        }catch(err){ failLoad(err && err.message ? err.message : ''); }
+      };
+      rd.onerror = () => failLoad('No pudimos leer "' + file.name + '".');
+      rd.readAsArrayBuffer(file);
+    };
+
+    const terminar = () => {
+      if(!partes.length){ failLoad(''); return; }
+      const b = partes.length === 1 ? partes[0] : Core.merge(partes);
       built = b;
       yaGanaron = []; sorteosHechos = 0; registro = [];
+      diag = {archivos: detalle,
+              filas: detalle.reduce((a,x)=> a + x.filas, 0),
+              descartadas: b.discarded, anuladas: b.anuladas, duplicadas: b.duplicadas,
+              validas: b.validas, personas: b.list.length, opciones: b.total,
+              fraccionado: $('weighting').value === 'row',
+              repetidos: detalle.reduce((a,x)=> a + x.personas, 0) - b.list.length};
       animateLoad(b.list.length, b.total, b.list.map(displayName));
     };
-    rd.onerror = () => failLoad('');
-    rd.readAsArrayBuffer(file);
+
+    siguiente();
   }
 
   function failLoad(msg){
