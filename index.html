@@ -1336,6 +1336,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = Core;   //
     ['stateLoad','stateProcess','stateIdle','stateDraw','stateWin','stateSummary']
       .forEach(s => $(s).classList.toggle('on', s===id));
     if(id !== 'stateProcess' && id !== 'stateDraw') apagarBurbujas();
+    if(id !== 'stateWin') pararConfeti();
     $('show').scrollTop = 0;          /* cada escena empieza desde arriba */
     fitPronto();
   }
@@ -1544,7 +1545,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = Core;   //
   const PHASES = ['Preparando la suerte…','Entre miles de participantes…','Y el ganador es…'];
 
   $('drawBtn').addEventListener('click', run);
-  $('againBtn').addEventListener('click', run);
+  $('againBtn').addEventListener('click', ()=>{
+    if(drawing) return;
+    /* con varios premios: primero se presenta el siguiente premio y desde ahí se sortea */
+    if(cola.length > 1) show('stateIdle');
+    else run();
+  });
 
   /* ritmos de la revelación (ms) */
   const RITMOS = {
@@ -1694,7 +1700,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = Core;   //
                              ($('noRepeat').checked && quedanGente <= 0);
     /* preparar el siguiente premio de la lista */
     if(quedanPremios > 0){ colaIx++; pintarPremio(); }
-    if(cola.length > 1 && quedanPremios > 0) $('againBtn').textContent = 'SORTEAR SIGUIENTE PREMIO';
+    if(cola.length > 1 && quedanPremios > 0) $('againBtn').textContent = 'VER EL SIGUIENTE PREMIO';
     $('listBtn').textContent = $('againBtn').disabled ? 'VER TODOS LOS GANADORES' : 'VER GANADORES';
     show('stateWin');
     if(confDelay) setTimeout(celebrate, confDelay); else celebrate();
@@ -1756,6 +1762,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = Core;   //
         dot: Math.random() < .35
       });
     }
+  }
+
+  function pararConfeti(){
+    parts = [];
+    if(ctx) ctx.clearRect(0, 0, innerWidth, innerHeight);
   }
 
   function celebrate(){
