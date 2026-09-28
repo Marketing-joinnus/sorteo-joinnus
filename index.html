@@ -113,6 +113,7 @@
   .drop.compact{flex:1 1 auto;padding:11px 16px;text-align:left;border-radius:11px;border-width:1.5px}
   .drop.compact b{font-size:13px;letter-spacing:.3px}
   .drop.compact small{margin-top:1px;font-size:11.5px}
+  .opt{color:var(--muted);font-weight:400}
   .toggle{display:flex;align-items:flex-start;gap:11px;margin-top:16px;font-size:14px;color:var(--txt);cursor:pointer;line-height:1.5}
   .toggle input{width:18px;height:18px;flex:0 0 auto;margin-top:1px;accent-color:var(--teal)}
   .toggle>span{display:block}
@@ -335,8 +336,21 @@
 
     <div class="card">
       <h3>Identidad del sorteo</h3>
-      <label for="raffleName">Nombre del sorteo</label>
+      <label for="raffleName">Etiqueta superior</label>
       <input type="text" id="raffleName" value="SORTEO" maxlength="80">
+
+      <label for="generalTitle">Título general del sorteo <span class="opt">— se muestra al cargar la base</span></label>
+      <input type="text" id="generalTitle" maxlength="80" placeholder="Ej.: Sorteo Aniversario Joinnus">
+
+      <label>Imagen general del sorteo <span class="opt">— opcional</span></label>
+      <div class="logo-row">
+        <img class="logo-prev" id="genPrev" alt="">
+        <div class="drop compact" id="genDrop">
+          <b>Subir imagen general</b>
+          <small>Se ve en la pantalla de carga, antes de los premios</small>
+        </div>
+      </div>
+      <input type="file" id="genInput" accept="image/*" hidden>
       <input type="hidden" id="prizeName" value="iPhone 17 Pro Max">
       <label>Logo</label>
       <div class="logo-row">
@@ -753,8 +767,10 @@ const Core = (() => {
       let   name = ape ? (pila + ' ' + ape).trim() : pila;
       const tran = cols.trans ? String(r[cols.trans]||'').trim() : '';
 
-      /* 3) filas idénticas en todas sus columnas (solo si NO es un reporte fraccionado) */
-      if(!fraccionado && claves.length){
+      /* 3) filas idénticas en todas sus columnas.
+         Solo se aplica si la fila tiene número de transacción: sin él no hay forma de
+         distinguir una fila repetida por el reporte de dos compras reales iguales. */
+      if(tran && !fraccionado && claves.length){
         const firma = firmaDe(r);
         if(firmas[firma]){ duplicadas++; continue; }
         firmas[firma] = 1;
@@ -1086,6 +1102,15 @@ if (typeof module !== 'undefined' && module.exports) module.exports = Core;   //
 
   (function(){ const pv = $('logoPrev'); pv.src = LOGO_DEFAULT; pv.style.display = 'block'; })();
   wireDrop($('logoDrop'), $('logoInput'), loadLogo);
+
+  let genImg = '';
+  function loadGen(files){
+    const file = files[0] || files;
+    const rd = new FileReader();
+    rd.onload = () => { genImg = rd.result; const pv = $('genPrev'); pv.src = genImg; pv.style.display = 'block'; };
+    rd.readAsDataURL(file);
+  }
+  wireDrop($('genDrop'), $('genInput'), loadGen);
   wireDrop($('pubDrop'), $('pubInput'), processFiles);
 
   /* ---------- lista de premios ---------- */
@@ -1214,9 +1239,16 @@ if (typeof module !== 'undefined' && module.exports) module.exports = Core;   //
     cola = buildQueue(); colaIx = 0; registro = [];
     $('prizeName').value = cola[0].name;
     const title = ($('raffleName').value || 'SORTEO').toUpperCase();
-    const prize = cola[0].name;
     $('rTitle').textContent = title;  $('lTitle').textContent = title;
-    $('rPrize').textContent = prize;  $('lPrize').textContent = prize;
+
+    /* pantalla de carga: identidad general del sorteo */
+    const gen = ($('generalTitle').value || '').trim();
+    $('lPrize').textContent = gen;
+    $('lPrize').style.display = gen ? 'block' : 'none';
+    const li = $('lImg');
+    if(genImg){ li.src = genImg; li.style.display = 'block'; li.onload = fitPronto; }
+    else { li.removeAttribute('src'); li.style.display = 'none'; }
+    $('rPrize').textContent = cola[0].name;
     $('pubMsg').textContent = '';
     built = null; loading = false;
     const brand = $('brand');
@@ -1530,12 +1562,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = Core;   //
     const actual = cola[colaIx] || cola[cola.length-1] || {name:'el gran premio', img:''};
     $('prizeName').value = actual.name;
     $('rPrize').textContent = actual.name;
-    $('lPrize').textContent = actual.name;
-    [['lImg', actual.img], ['rImg', actual.img]].forEach(([id, src]) => {
-      const el = $(id);
-      if(src){ el.src = src; el.style.display = 'block'; el.onload = fitPronto; }
-      else { el.removeAttribute('src'); el.style.display = 'none'; }
-    });
+    const ri = $('rImg');
+    if(actual.img){ ri.src = actual.img; ri.style.display = 'block'; ri.onload = fitPronto; }
+    else { ri.removeAttribute('src'); ri.style.display = 'none'; }
     $('idlePrize').textContent = cola.length > 1
       ? 'SORTEO ' + (colaIx+1) + ' DE ' + cola.length.toLocaleString('es-PE') : '';
     fitPronto();
