@@ -1276,7 +1276,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = Core;   //
       L.push('');
       (diag.archivos || []).forEach((a, n) => {
         const c = a.cols;
-        L.push('ARCHIVO ' + (n+1) + ': ' + a.archivo);
+        L.push('ARCHIVO ' + (n+1) + ': ' + a.archivo +
+               (a.bytes ? '   (' + a.bytes.toLocaleString('es-PE') + ' bytes)' : ''));
+        L.push('   huella SHA-256: ' + (a.huella || '(no disponible)'));
         L.push('   hoja usada: ' + a.hoja +
           (a.hojas.length > 1 ? '   (' + a.hojas.map(h => h.name + ' [' + h.rows + ' filas/' + h.unicas + ' compras]').join(', ') + ')' : ''));
         L.push('   columnas -> peso: ' + (c.cantidad || '—') + ' | documento: ' + (c.doc || '—') +
@@ -1385,6 +1387,17 @@ if (typeof module !== 'undefined' && module.exports) module.exports = Core;   //
     [9400, '¡BASE LISTA!']
   ];
 
+  /* Huella SHA-256 del archivo tal como llegó, calculada en el navegador */
+  function huellaSHA256(buffer){
+    try{
+      const g = window.crypto && window.crypto.subtle;
+      if(!g) return Promise.resolve('');
+      return g.digest('SHA-256', buffer).then(h =>
+        Array.prototype.map.call(new Uint8Array(h), b => b.toString(16).padStart(2,'0')).join('').toUpperCase()
+      ).catch(()=> '');
+    }catch(e){ return Promise.resolve(''); }
+  }
+
   function processFiles(fileList){
     if(loading || drawing) return;
     const files = Array.prototype.slice.call(fileList || []);
@@ -1406,6 +1419,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = Core;   //
       const file = files[ix++];
       const rd = new FileReader();
       rd.onload = () => {
+        const bufferCopia = rd.result.slice(0);          /* copia para la huella */
         try{
           const leido = Core.readAny(rd.result);
           const headers = leido.headers, data = leido.data;
@@ -1416,9 +1430,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = Core;   //
                                             pesoPorFila: $('weighting').value === 'row'});
           if(!b.list.length || b.total <= 0) throw new Error('"' + file.name + '" no tiene participantes con opciones válidas.');
           partes.push(b);
-          detalle.push({archivo:file.name, hoja:leido.sheet, hojas:leido.sheets || [], cols:cols, headers:headers,
+          const infoArchivo = {archivo:file.name, bytes:file.size, huella:'(calculando…)',
+                               hoja:leido.sheet, hojas:leido.sheets || [], cols:cols, headers:headers,
                         filas:data.length, descartadas:b.discarded, anuladas:b.anuladas, duplicadas:b.duplicadas,
-                        validas:b.validas, personas:b.list.length, opciones:b.total, fraccionado:b.fraccionado});
+                        validas:b.validas, personas:b.list.length, opciones:b.total, fraccionado:b.fraccionado};
+          detalle.push(infoArchivo);
+          huellaSHA256(bufferCopia).then(h => { infoArchivo.huella = h || '(no disponible)'; });
           siguiente();
         }catch(err){ failLoad(err && err.message ? err.message : ''); }
       };
